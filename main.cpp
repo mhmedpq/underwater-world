@@ -18,8 +18,8 @@
 #include <vector>
 #include <cstdio>
 
-static const int WIN_W = 1200;
-static const int WIN_H = 800;
+static const int WIN_W = 1920;
+static const int WIN_H = 1080;
 static const float PI = 3.14159265f;
 static const int TIMER_MS = 16;
 static const int MAX_FISH = 50;
