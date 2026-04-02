@@ -22,8 +22,8 @@ static const int WIN_W = 1920;
 static const int WIN_H = 1080;
 static const float PI = 3.14159265f;
 static const int TIMER_MS = 16;
-static const int MAX_FISH = 50;
-static const int INIT_BUBBLES = 200;
+static const int MAX_FISH = 100;
+static const int INIT_BUBBLES = 300;
 
 struct Fish
 {
