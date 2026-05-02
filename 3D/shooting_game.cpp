@@ -1,16 +1,17 @@
 /*
  * ============================================================
+ * name : Muhammed Awad Farag Hamed
+ * ID : 232611000037
+ * ============================================================
+ *
+ *
+ * ============================================================
  *   3D SHOOTING ARENA
- *   University-Level Computer Graphics Project
- *   OpenGL + GLUT (Fixed Pipeline) | C++
+ *   OpenGL + GLUT + OpenAL | C++
  * ============================================================
  *
  * COMPILE:
- *   g++ main.cpp -o game -lGL -lGLU -lglut -lm -lopenal
- *
- * INSTALL OpenAL (if missing):
- *   sudo apt-get install libopenal-dev
- *
+ *   g++ shooting_game.cpp -o game -lGL -lGLU -lglut -lm -lopenal -lsndfile
  * RUN:
  *   ./game
  *
@@ -25,9 +26,8 @@
  *   P           - Pause / Resume
  *
  * SOUND SYSTEM:
- *   All sounds are synthesized procedurally (no audio files needed).
  *   Uses OpenAL for 3D positional audio output.
- *   Sounds: gunshot, reload, footstep, jump, land, explosion, hit.
+ *   Sounds: gunshot, reload, footstep, jump, land, explosion, hit and the background music
  *
  * ============================================================
  */
@@ -48,7 +48,6 @@
 
 // ============================================================
 //  SOUND SYSTEM  (OpenAL + Procedurally Synthesized PCM)
-//  No external audio files required — all sounds generated in code.
 // ============================================================
 
 /*
@@ -84,6 +83,7 @@ static bool soundOK = false;
 // ---- Waveform builders ----
 // All return a heap-allocated int16 PCM buffer; caller owns it.
 
+// sound of gunshot
 static std::vector<int16_t> buildShoot(int sampleRate = 44100)
 {
     // Sharp transient + low-frequency boom + high-frequency crack
@@ -106,7 +106,7 @@ static std::vector<int16_t> buildShoot(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of reloading
 static std::vector<int16_t> buildReload(int sampleRate = 44100)
 {
     // Magazine eject click (0–80 ms) + slide pull (80–300 ms) + chamber click (300–400 ms)
@@ -143,7 +143,7 @@ static std::vector<int16_t> buildReload(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of footstep
 static std::vector<int16_t> buildFootstep(int sampleRate = 44100)
 {
     // Short soft thud — low-freq transient
@@ -160,7 +160,7 @@ static std::vector<int16_t> buildFootstep(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of jump
 static std::vector<int16_t> buildJump(int sampleRate = 44100)
 {
     // Quick rising pitch swoosh
@@ -178,7 +178,7 @@ static std::vector<int16_t> buildJump(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of landing on the ground after a jump or fall
 static std::vector<int16_t> buildLand(int sampleRate = 44100)
 {
     // Heavy thud + body settle rumble
@@ -195,7 +195,7 @@ static std::vector<int16_t> buildLand(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of explosion
 static std::vector<int16_t> buildExplosion(int sampleRate = 44100)
 {
     // Long rumbling boom with noise burst
@@ -215,7 +215,7 @@ static std::vector<int16_t> buildExplosion(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of hitting a target (enemy)
 static std::vector<int16_t> buildHit(int sampleRate = 44100)
 {
     // Short metallic ping
@@ -232,7 +232,7 @@ static std::vector<int16_t> buildHit(int sampleRate = 44100)
     }
     return buf;
 }
-
+// sound of dry-fire click when shooting with empty magazine
 static std::vector<int16_t> buildEmpty(int sampleRate = 44100)
 {
     // Dry-fire click — tiny metallic tap
@@ -258,7 +258,7 @@ static void uploadBuffer(ALuint buf, const std::vector<int16_t> &pcm, int rate)
 }
 
 // ---- Public API ----
-
+// the game calls these from main() and the update loop
 void soundInit()
 {
     alDevice = alcOpenDevice(nullptr);
@@ -292,7 +292,7 @@ void soundInit()
     // Configure all sources with sensible defaults
     for (int i = 0; i < AL_SOURCES; i++)
     {
-        alSourcef(alSources[i], AL_GAIN, 1.5f);
+        alSourcef(alSources[i], AL_GAIN, 1.0f);
         alSourcef(alSources[i], AL_PITCH, 0.0f);
         alSourcei(alSources[i], AL_LOOPING, AL_FALSE);
         alSource3f(alSources[i], AL_POSITION, 0, 0, 0);
@@ -306,11 +306,10 @@ void soundInit()
     float ori[6] = {0, 0, -1, 0, 1, 0};
     alListenerfv(AL_ORIENTATION, ori);
     alListenerf(AL_GAIN, 1.0f);
-
     soundOK = true;
     printf("[Audio] OpenAL initialized — procedural sound system active.\n");
 }
-
+// Clean up OpenAL resources on shutdown
 void soundShutdown()
 {
     if (!soundOK)
@@ -337,7 +336,7 @@ static ALuint getFreeSource()
 
 /*
  *  playSound(id, gain, pitch, relative, worldPos)
- *    relative = true  → sound attached to listener (UI / player sounds)
+ *    relative = true  → sound attached to listener
  *    relative = false → 3D positional sound at worldPos
  */
 void playSound(SoundID id, float gain = 1.0f, float pitch = 1.0f,
@@ -413,12 +412,12 @@ void soundUpdateMovement(float bobPhase, bool onGround,
 // ============================================================
 //  BACKGROUND MUSIC SYSTEM
 //  Loads any audio file from assets/ and loops it forever.
-//  Supported formats: .wav  .ogg  .flac  .mp3 (if libsndfile built with mp3)
 // ============================================================
 
 static ALuint musicBuffer = 0;
 static ALuint musicSource = 0;
 
+// Initialize music system and start playing the specified file (relative to assets/)
 void musicInit(const char *filepath)
 {
     if (!soundOK)
@@ -477,7 +476,7 @@ void musicInit(const char *filepath)
            sfInfo.samplerate, sfInfo.channels,
            (float)sfInfo.frames / sfInfo.samplerate);
 }
-
+// Stop music and free resources
 void musicShutdown()
 {
     if (musicSource)
@@ -492,7 +491,7 @@ void musicShutdown()
         musicBuffer = 0;
     }
 }
-
+// Set music volume (0.0 - 1.0)
 void musicSetVolume(float vol)
 {
     if (musicSource)
@@ -500,7 +499,7 @@ void musicSetVolume(float vol)
 }
 
 // ============================================================
-//  SECTION 1: CONSTANTS & CONFIGURATION
+// CONSTANTS & CONFIGURATION
 // ============================================================
 
 static const int WINDOW_W = 1280;
@@ -522,7 +521,7 @@ static const float RECOIL_AMOUNT = 1.8f;
 static const float RECOIL_RECOVER = 8.0f;
 
 // ============================================================
-//  SECTION 2: MATH HELPERS
+// MATH HELPERS
 // ============================================================
 
 struct Vec3
@@ -558,10 +557,12 @@ struct Vec3
         return l > 1e-6f ? Vec3(x / l, y / l, z / l) : Vec3(0, 0, 0);
     }
 };
-
+// clamp and lerp helpers
 inline float clampf(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi
                                                                                : v; }
+// linear interpolation
 inline float lerpf(float a, float b, float t) { return a + (b - a) * t; }
+// random float in [lo, hi]
 inline float randf(float lo = 0, float hi = 1)
 {
     return lo + (hi - lo) * (float)rand() / (float)RAND_MAX;
@@ -586,9 +587,9 @@ float raySphere(Vec3 ro, Vec3 rd, Vec3 c, float r)
 }
 
 // ============================================================
-//  SECTION 3: PARTICLE SYSTEM
+// PARTICLE SYSTEM
 // ============================================================
-
+// Used for impact sparks, explosion debris, and muzzle flashes.
 struct Particle
 {
     Vec3 pos, vel;
@@ -600,13 +601,13 @@ struct Particle
 
 static const int MAX_PARTICLES = 600;
 Particle particles[MAX_PARTICLES];
-
+// Simple fixed-size pool allocator for particles
 void initParticles()
 {
     for (int i = 0; i < MAX_PARTICLES; i++)
         particles[i].active = false;
 }
-
+// Finds an inactive particle slot and returns a pointer, or nullptr if full
 Particle *allocParticle()
 {
     for (int i = 0; i < MAX_PARTICLES; i++)
@@ -614,7 +615,7 @@ Particle *allocParticle()
             return &particles[i];
     return nullptr; // pool full
 }
-
+// Spawn an impact effect at position p with color (nr, ng, nb)
 void spawnImpact(Vec3 p, float nr, float ng, float nb)
 {
     for (int i = 0; i < 18; i++)
@@ -635,7 +636,7 @@ void spawnImpact(Vec3 p, float nr, float ng, float nb)
         pk->a = 1;
     }
 }
-
+// Spawn an explosion effect at position p (orange sparks + smoke)
 void spawnExplosion(Vec3 p)
 {
     for (int i = 0; i < 60; i++)
@@ -657,7 +658,7 @@ void spawnExplosion(Vec3 p)
         pk->a = 1;
     }
 }
-
+// Spawn a brief muzzle flash effect at position p (bright orange sparks)
 void spawnMuzzleFlash(Vec3 p)
 {
     for (int i = 0; i < 8; i++)
@@ -678,7 +679,7 @@ void spawnMuzzleFlash(Vec3 p)
         pk->a = 1;
     }
 }
-
+// Update all active particles: move, apply gravity, fade out, and deactivate when life expires
 void updateParticles(float dt)
 {
     for (int i = 0; i < MAX_PARTICLES; i++)
@@ -696,9 +697,9 @@ void updateParticles(float dt)
 }
 
 // ============================================================
-//  SECTION 4: CAMERA SYSTEM
+// CAMERA SYSTEM
 // ============================================================
-
+// First-person camera with free look, head bob, and jump physics. The "forward" vector is computed from yaw + pitch + recoil, and "right" is computed from yaw only (for strafing).
 struct Camera
 {
     Vec3 pos;
@@ -728,7 +729,7 @@ struct Camera
 };
 
 Camera cam;
-
+// Initialize camera state at game start
 void initCamera()
 {
     cam.pos = Vec3(0, PLAYER_HEIGHT, 0);
@@ -742,9 +743,9 @@ void initCamera()
 }
 
 // ============================================================
-//  SECTION 5: TARGET TYPES & SYSTEM
+// TARGET TYPES & SYSTEM
 // ============================================================
-
+// Targets are the shooting gallery "enemies" — they can be static, patrol between two points, rotate in place, or fly around as drones. Each target has a position, hit points, collision radius, and behavior parameters. When hit by a bullet ray, they take damage and may be destroyed, triggering score gain and particle effects. Destroyed targets respawn after a delay at a random location.
 enum TargetType
 {
     TGT_STATIC = 0,
@@ -753,7 +754,6 @@ enum TargetType
     TGT_DRONE,
     TGT_BOUNCER
 };
-
 struct Target
 {
     Vec3 pos;
@@ -775,7 +775,7 @@ struct Target
 static const int MAX_TARGETS = 20;
 Target targets[MAX_TARGETS];
 int numTargets = 0;
-
+// Helper to add a target with specified parameters to the targets array
 void addTarget(TargetType type, Vec3 pos, float radius, int hp, int score)
 {
     if (numTargets >= MAX_TARGETS)
@@ -803,7 +803,7 @@ void addTarget(TargetType type, Vec3 pos, float radius, int hp, int score)
         pos.y,
         clampf(pos.z + dz, -ARENA_SIZE + 3, ARENA_SIZE - 3));
 }
-
+// Initialize all targets at game start with a mix of types and parameters
 void initTargets()
 {
     numTargets = 0;
@@ -827,7 +827,7 @@ void initTargets()
     addTarget(TGT_BOUNCER, Vec3(0, 1.2f, -18), 0.85f, 3, 150);
     addTarget(TGT_BOUNCER, Vec3(-18, 1.2f, 0), 0.85f, 3, 150);
 }
-
+// Update all targets every frame: move according to behavior, handle hit flash decay, and manage respawn timers for destroyed targets
 void updateTargets(float dt, float totalTime)
 {
     for (int i = 0; i < numTargets; i++)
@@ -905,9 +905,9 @@ void updateTargets(float dt, float totalTime)
 }
 
 // ============================================================
-//  SECTION 6: GAME STATE
+// GAME STATE
 // ============================================================
-
+// Tracks player score, health, ammo, timers for shooting and reloading, game time, and other gameplay-related variables. Updated every frame and used to drive game logic and UI display.
 struct GameState
 {
     int score;
@@ -933,7 +933,7 @@ struct GameState
 };
 
 GameState gs;
-
+// Initialize game state at start of game or when restarting after game over
 void initGame()
 {
     gs.score = 0;
@@ -944,7 +944,7 @@ void initGame()
     gs.shootTimer = 0;
     gs.muzzleTimer = 0;
     gs.totalTime = 0;
-    gs.gameTime = 120.0f; // 2 minutes
+    gs.gameTime = 30.0f; // 1 minute
     gs.gameOver = false;
     gs.paused = false;
     gs.started = true;
@@ -961,7 +961,7 @@ void initGame()
 }
 
 // ============================================================
-//  SECTION 7: INPUT HANDLING
+// INPUT HANDLING
 // ============================================================
 
 bool keys[256] = {};
@@ -969,7 +969,7 @@ bool mouseDown = false;
 int lastMouseX = -1;
 int lastMouseY = -1;
 bool mouseCaptured = false;
-
+// Keyboard input handlers: track key states in a boolean array for easy querying in the main update loop. Also handle special keys (arrow keys) and game controls like pause and reload.
 void onSpecialKey(int k, int, int)
 {
     if (k == GLUT_KEY_UP)
@@ -981,7 +981,7 @@ void onSpecialKey(int k, int, int)
     if (k == GLUT_KEY_RIGHT)
         keys[202] = true;
 }
-
+// Note: GLUT uses separate callbacks for key down and key up events, so we need to track both to maintain accurate key states.
 void onSpecialKeyUp(int k, int, int)
 {
     if (k == GLUT_KEY_UP)
@@ -993,6 +993,7 @@ void onSpecialKeyUp(int k, int, int)
     if (k == GLUT_KEY_RIGHT)
         keys[202] = false;
 }
+// Regular keys: WASD for movement, R for reload, P for pause, ESC to quit. Update the corresponding entries in the keys array and handle immediate actions like pausing and starting reloads.
 void onKey(unsigned char k, int, int)
 {
     keys[(unsigned char)tolower(k)] = true;
@@ -1011,15 +1012,16 @@ void onKey(unsigned char k, int, int)
         playSound(SND_RELOAD, 1.0f, 1.0f); // reload start click
     }
 }
+// Key release handler: update key states to false when keys are released, allowing for responsive controls and accurate movement handling in the update loop.
 void onKeyUp(unsigned char k, int, int)
 {
     keys[(unsigned char)tolower(k)] = false;
 }
 
 // ============================================================
-//  SECTION 8: SHOOTING / WEAPON SYSTEM
+// SHOOTING / WEAPON SYSTEM
 // ============================================================
-
+// Handles shooting logic, including ammo count, cooldowns, recoil application, raycasting for hit detection, and triggering particle effects and sounds on hits and misses. Called when the player clicks the shoot button (left mouse).
 void doShoot()
 {
     if (gs.gameOver || gs.paused || !gs.started)
@@ -1110,7 +1112,7 @@ void doShoot()
         spawnImpact(imp, 0.6f, 0.6f, 0.6f);
     }
 }
-
+// Mouse click handler: left button to shoot. Update mouseDown state and call doShoot() on press.
 void onMouseClick(int button, int state, int x, int y)
 {
     if (button == GLUT_LEFT_BUTTON)
@@ -1120,7 +1122,7 @@ void onMouseClick(int button, int state, int x, int y)
             doShoot();
     }
 }
-
+// Mouse move handler: when mouse moves, update camera yaw and pitch based on movement delta. Also implement cursor warping to center to allow for infinite rotation without hitting screen edges.
 void onMouseMove(int x, int y)
 {
     if (gs.gameOver || gs.paused)
@@ -1149,9 +1151,9 @@ void onMouseMove(int x, int y)
 }
 
 // ============================================================
-//  SECTION 9: PHYSICS & PLAYER UPDATE
+// PHYSICS & PLAYER UPDATE
 // ============================================================
-
+// Handles player movement based on input, applies gravity and jump physics, manages head bobbing effect based on movement speed, and recovers from recoil over time. Called every frame in the main update loop.
 void updatePlayer(float dt)
 {
     if (gs.gameOver || gs.paused)
@@ -1238,7 +1240,7 @@ void updatePlayer(float dt)
 }
 
 // ============================================================
-//  SECTION 10: RENDERING HELPERS
+// RENDERING HELPERS
 // ============================================================
 
 // Draw a solid box centered at current origin with given half-dimensions
@@ -1387,7 +1389,7 @@ void myWireCube(float s)
     glutWireCube(1.0);
     glPopMatrix();
 }
-
+// Draw a crate with a wireframe overlay to make it pop more. Used for targets and some props. The wireframe is drawn with polygon offset to avoid z-fighting.
 void drawCrateFull(float x, float y, float z, float s)
 {
     glPushMatrix();
@@ -1578,11 +1580,11 @@ void drawTarget(Target &t, float totalTime)
 }
 
 // ============================================================
-//  SECTION 11: SCENE DECORATIONS
+// CENE DECORATIONS
 // ============================================================
 
 float envRotation = 0; // slowly rotating sky elements
-
+// Draw a simple skybox with a gradient and some stars. Also includes an orbiting moon/planet for visual interest. The skybox is drawn first with depth test and lighting disabled, then re-enabled for the rest of the scene.
 void drawSkybox()
 {
     // Simple gradient sky using a large quad dome
@@ -1653,14 +1655,14 @@ void drawSkybox()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING);
 }
-
+// Draw various decorative elements in the arena: pillars, crates, a sci-fi platform with a glowing edge, orbiting rings around the center, and ground accent lines. These add visual interest and break up the space without interfering with gameplay.
 void drawDecorations(float totalTime)
 {
     // Pillars
     float pillarPos[6][2] = {
         {-30, -30}, {30, -30}, {-30, 30}, {30, 30}, {0, -35}, {0, 35}};
-    for (int i = 0; i < 6; i++)
-        drawPillar(pillarPos[i][0], pillarPos[i][1], 6.0f, 0.6f);
+    // for (int i = 0; i < 6; i++)
+    //     drawPillar(pillarPos[i][0], pillarPos[i][1], 6.0f, 0.6f);
 
     // Crates cluster
     drawCrateFull(-25, 0, -25, 1.8f);
@@ -1724,9 +1726,9 @@ void drawDecorations(float totalTime)
 }
 
 // ============================================================
-//  SECTION 12: PARTICLE RENDERING
+// PARTICLE RENDERING
 // ============================================================
-
+// Render particles as billboard quads that always face the camera. The size and alpha of each particle are based on its remaining life to create a fading effect. Blending is enabled for transparency, and depth writing is disabled to ensure proper rendering order of particles.
 void renderParticles()
 {
     glDisable(GL_LIGHTING);
@@ -1759,9 +1761,9 @@ void renderParticles()
 }
 
 // ============================================================
-//  SECTION 13: GUN / WEAPON VIEW MODEL
+// GUN / WEAPON VIEW MODEL
 // ============================================================
-
+// Draw a simple gun model in the lower-right corner of the screen as a view model. The gun consists of basic shapes (boxes and cylinders) to represent the barrel, body, grip, and trigger guard. The model is positioned and rotated based on the camera's recoil and bobbing to create a dynamic effect when firing and moving. A muzzle flash is rendered as a brief glowing sphere at the barrel's end when shooting.
 void drawWeaponViewModel()
 {
     glDisable(GL_LIGHTING);
@@ -1828,7 +1830,7 @@ void drawWeaponViewModel()
 }
 
 // ============================================================
-//  SECTION 14: HUD SYSTEM
+// HUD SYSTEM
 // ============================================================
 
 // Draw text at normalized screen coords [0..1, 0..1]
@@ -1842,7 +1844,7 @@ void drawText2D(float nx, float ny, const char *str, float r, float g, float b, 
         glutBitmapCharacter(font, *str++);
     }
 }
-
+// Larger text variant for important messages (e.g. "RELOADING...")
 void drawText2DLarge(float nx, float ny, const char *str, float r, float g, float b)
 {
     drawText2D(nx, ny, str, r, g, b, 1.0f, GLUT_BITMAP_HELVETICA_18);
@@ -1932,7 +1934,7 @@ void drawHealthBar()
 static float fps = 0;
 static int frameCount = 0;
 static float fpsTimer = 0;
-
+// The HUD is drawn in 2D screen space with an orthographic projection. It includes the crosshair, ammo bar, health bar, score, timer, kill count, accuracy, FPS, combo counter, and a difficulty badge. When reloading, a flashing overlay is shown. When health is low, a red vignette appears around the edges of the screen.
 void drawHUD()
 {
     // Setup 2D ortho
@@ -2021,9 +2023,9 @@ void drawHUD()
 }
 
 // ============================================================
-//  SECTION 15: GAME OVER / PAUSE SCREENS
+// GAME OVER / PAUSE SCREENS
 // ============================================================
-
+// Draw the game over screen with the final score, stats, and options to restart or quit. A dark semi-transparent overlay is drawn behind the text for readability. The pause screen is similar but simpler, just showing a "PAUSED" message and instructions to resume.
 void drawGameOverScreen()
 {
     glMatrixMode(GL_PROJECTION);
@@ -2068,7 +2070,7 @@ void drawGameOverScreen()
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
 }
-
+// Draw the game over screen with the final score, stats, and options to restart or quit. A dark semi-transparent overlay is drawn behind the text for readability. The pause screen is similar but simpler, just showing a "PAUSED" message and instructions to resume.
 void drawPauseScreen()
 {
     glMatrixMode(GL_PROJECTION);
@@ -2099,7 +2101,7 @@ void drawPauseScreen()
 }
 
 // ============================================================
-//  SECTION 16: LIGHTING SETUP
+// LIGHTING SETUP
 // ============================================================
 
 void setupLighting()
@@ -2145,9 +2147,9 @@ void setupLighting()
 }
 
 // ============================================================
-//  SECTION 17: MAIN DISPLAY / RENDER
+// MAIN DISPLAY / RENDER
 // ============================================================
-
+// The main display function sets up the 3D perspective, applies camera transformations with head bobbing, and renders the entire scene in a specific order: skybox, ground, walls, decorations, targets, particles, weapon view model, and HUD. FOG is enabled for depth and atmosphere. The weapon view model is rendered last with a separate projection to ensure it appears correctly in front of the scene. The HUD is drawn as a 2D overlay on top of everything.
 void display()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -2226,11 +2228,11 @@ void display()
 }
 
 // ============================================================
-//  SECTION 18: UPDATE LOOP (delta time)
+// UPDATE LOOP (delta time)
 // ============================================================
 
 static float lastTime = 0;
-
+// The update function is called every ~16ms to achieve ~60 FPS. It calculates the delta time since the last update and uses it to update the environment rotation, game timer, player movement, target behavior, particles, and sound effects. It also handles the shoot cooldown, reload timing, combo decay, and checks for game over conditions. If the game is paused or over, it listens for the restart key. Finally, it schedules the next update call.
 void update(int)
 {
     float now = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
@@ -2325,9 +2327,9 @@ void update(int)
 }
 
 // ============================================================
-//  SECTION 19: RESHAPE
+// RESHAPE
 // ============================================================
-
+// The reshape function is called when the window is resized. It updates the OpenGL viewport to match the new window dimensions, ensuring that the rendered scene scales correctly. If the height is zero (to avoid division by zero), it sets it to 1.
 void reshape(int w, int h)
 {
     if (h == 0)
@@ -2336,9 +2338,9 @@ void reshape(int w, int h)
 }
 
 // ============================================================
-//  SECTION 20: MAIN ENTRY
+// MAIN ENTRY
 // ============================================================
-
+// The main function initializes the random seed, sets up the GLUT window and callbacks for display, reshape, keyboard, mouse, and special keys. It hides the cursor for an FPS feel and warps it to the center of the window. It enables depth testing, normalization, and multisampling for better visuals. The sound system is initialized, and the background music starts playing. The game state is initialized, and the first update call is scheduled. Finally, it enters the GLUT main loop.
 int main(int argc, char **argv)
 {
     srand((unsigned)time(nullptr));
@@ -2371,25 +2373,10 @@ int main(int argc, char **argv)
     // --- SOUND SYSTEM INIT ---
     soundInit();
     soundInit();
-    musicInit("assets/lovesong.mp3"); // ← change filename to yours
+    musicInit("assets/Kiwi.mp3"); //
     initGame();
     lastTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     glutTimerFunc(16, update, 0);
-
-    printf("\n");
-    printf("  =========================================\n");
-    printf("    3D SHOOTING ARENA — CG Project\n");
-    printf("  =========================================\n");
-    printf("  Controls:\n");
-    printf("    W/A/S/D  — Move\n");
-    printf("    MOUSE    — Look around\n");
-    printf("    L-CLICK  — Shoot\n");
-    printf("    R        — Reload / Restart on game over\n");
-    printf("    SPACE    — Jump\n");
-    printf("    P        — Pause\n");
-    printf("    ESC      — Quit\n");
-    printf("  Compile:  g++ main.cpp -o game -lGL -lGLU -lglut -lm -lopenal -lsndfile\n");
-    printf("  =========================================\n\n");
 
     glutMainLoop();
     musicShutdown(); // ← add this line
