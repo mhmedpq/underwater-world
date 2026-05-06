@@ -22,11 +22,6 @@ https://github.com/user-attachments/assets/7d425a05-f262-47d1-8af5-40be63ffc772
 3D Shooting Arena is a fully playable FPS game where the player moves freely inside a walled arena, aims at enemy targets, and scores points before a **60-second timer** runs out. Every system — physics, audio, particles, AI, and the HUD — is hand-built from scratch in a single C++ source file.
 
 ---
-
-## ⚙️ Video For Showing a live game
-https://github.com/mhmedpq/shooting_game/assets/Shooting_Arena.mp4 
-
----
 ## ⚙️ Tech Stack
 
 | Layer | Technology |
